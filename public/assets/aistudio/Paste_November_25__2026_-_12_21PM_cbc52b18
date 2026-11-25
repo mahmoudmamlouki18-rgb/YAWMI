@@ -1,0 +1,235 @@
+هذه الخطة قيد المراجعة
+يومى (YAWMI) - المرحلة النهائية 0: خطة التصميم والتنفيذ
+الحالة: المرحلة 0 - خطة التصميم المعماري النهائية / في انتظار موافقة المستخدم
+YAWMI هو تطبيق إنتاجية أصلي لنظام Android، يعمل محليًا وبدون اتصال بالإنترنت، مبني على فلسفة التخطيط اليدوي: حيث يحتفظ المستخدمون بالتحكم الكامل في المهام والجداول الزمنية والعادات والأهداف والملاحظات دون الحاجة إلى أتمتة قسرية أو الاعتماد على الخدمات السحابية. تُنهي هذه النسخة النهائية (المرحلة 0) جميع مواصفات البنية، والحفظ، والجدولة، والأذونات، والنسخ الاحتياطي، والتحقق من البناء، دون تعديل أي من ملفات مصدر المشروع أو ملفات Gradle أو الموارد.
+مراجعة المستخدم والقرارات الحاسمة
+الموافقة على هذه الخطة تخولالمرحلة الأولى (أساسات المشروع)فقط. لم يتم إنشاء أو تعديل أي ملفات مصدر أو Gradle أو XML أو قواعد بيانات خلال المرحلة 0. تتطلب كل مرحلة تنفيذ عملية بناء/اختبار فعلية وموافقة صريحة من المستخدم قبل الانتقال إلى المرحلة التالية.
+حقن التبعية (مؤكد): حاوية التبعية لحقن التبعية للمنشئ اليدوي (حاوية التطبيق) بدلاً من Hilt، مما يمنع تعارضات المكونات الإضافية لـ Gradle/KSP معAGP 9.1.1وKotlin 2.4.21مع الحفاظ على حدود الهندسة المعمارية النظيفة.
+اللغة والاتجاه (مؤكد): القيمة الافتراضية لـالعربية (من اليمين إلى اليسار)عند الإطلاق، مع إمكانية التبديل داخل التطبيق إلىالإنجليزية (من اليسار إلى اليمين)عبر موارد السلاسل النصية المحلية لنظام Android.
+المظهر المرئي (مؤكد): القيمة الافتراضية لـالفحم الداكن والذهبي الكهرماني، معضوء محايد دافئوخيارات سمة النظام في الإعدادات.
+خيار تعارض النسخ الاحتياطي والاستعادة (مؤكد): تصدير/استيراد JSON مُدقَّق عبر إطار عمل الوصول إلى التخزين (SAF)، مما يسمح للمستخدم بالاختياردمجأواستبدال(بالإضافة إلى حل صريح للتعارضات المتعلقة بسجلات إكمال العادات المختلفة).
+1. نظرة عامة والمفهوم الأساسي
+   ما يفعلهيدمج خمسة أركان يومية للإنتاجية—لوحة معلومات اليوم،إدارة المهام،التقويم (اليوم/الأسبوع/الشهر)،العادات والأهدافو والإحصائيات والملاحظات والنسخ الاحتياطي—استخدام Room (SQLite) و DataStore و WorkManager و AlarmManager بشكل كامل دون اتصال بالإنترنت.
+   مفتاح القيمةتخزين دائم للغرف من مرحلة CRUD الأولى، وجداول مالكين مقاومة للضياع، وصندوق صادر للمعاملات متسلسل بشكل رتيب لمزامنة تنبيهات نظام التشغيل، فريد عالميًاPendingIntentالهويات، وعمليات نقل الغرف غير المدمرة الصريحة، وتشخيصات الأذونات متعددة الطبقات الصادقة.
+2. تجربة المستخدم، الإعدادات الافتراضية للمهام، والتنقل
+   5- بنية التنقل إلى الوجهة:
+   رمز
+   ┌──────────────────────────────────────────────────────────────────────┐
+   │                       YAWMI Top-Level Shell                          │
+│  (Bottom NavigationBar on Compact / NavigationRail on Medium+)       │
+├──────────────┬──────────────┬──────────────┬──────────────┬──────────┤
+│  1. Today    │  2. Tasks    │ 3. Calendar  │ 4. Habits &  │ 5. Stats │
+│  (اليوم)     │  (المهام)    │  (التقويم)   │    Goals     │ & More   │
+├──────────────┼──────────────┼──────────────┼──────────────┼──────────┤
+│ • Greeting   │ • All Tasks  │ • Day View   │ • Habits Tab │ • Daily/ │
+│ • Progress   │ • Search     │ • Week Strip │   & Streaks  │   Weekly │
+│ • Overdue    │ • Filter &   │ • Month Grid │ • Goals Tab  │   Reports│
+│ • Priorities │   Sort       │ • Time Slots │   & Linked   │ • Notes  │
+│ • Upcoming   │ • Categories │ • Unscheduled│   Progress   │ • Backup │
+│ • Quick Add  │ • Task Sheet │   Drawer     │ • Habit/Goal │ • Theme/ │
+│   FAB        │   & Detail   │              │   Editors    │   Locale │
+└──────────────┴──────────────┴──────────────┴──────────────┴──────────┘
+سياسة إنشاء المهام والقيم الافتراضية:
+حقل إلزامي واحد: فقطالعنوان(بعد إزالة الفراغات، لا يلزم وجود فراغات) لإنشاء مهمة.
+القيم الافتراضية للحقول المحذوفة:id= تم إنشاء UUID الإصدار 4؛الوصف=لا شيء؛تاريخ مُجدول=لا شيء(لا يزال غير مجدول في قائمة مهام العمل المتراكمة؛ لم يتم تحديد تاريخ وهمي له مطلقاً)؛وقت البدء/وقت الانتهاء=لا شيء(وقت الانتهاءيتطلبوقت البدءووقت النهاية >= وقت البداية);أولوية=متوسط(عالي،متوسط،منخفض);الحالة=معلق(معلق↔قيد التقدم→مكتمل/ملغي، معإعادة فتحإعادة التعيين إلىمعلقوالتنظيفتم الانتهاء في العصر الحديث);categoryId=لا شيء؛ملاحظات=لا شيء؛createdAtEpochMs/تم التحديث في العصر الطباشيري= توقيت UTC بالمللي ثانية؛تم الانتهاء في العصر الحديث=لا شيء.
+الهوية البصرية والطباعة:
+فحمي داكن (افتراضي): الخلفية#0F1114، سطح#171A1F، بطاقة مرتفعة#1F242B، حدود#2B313B، كهرماني ذهبي أساسي#E8A838رمل دافئ ثانوي#D4B483، نجاح#4CAF7D، متأخر#E5735C، نص أساسي#F4F1EA، نص ثانوي#9BA3B0.
+ضوء محايد دافئ: الخلفية#FAF7F2، سطح#FFFFFF، بطاقة مرتفعة#F2ECE1، حدود#E2D9C8، كهرماني داكن أساسي#B87314، نص أساسي#1A1917، نص ثانوي#635E56.
+الطباعة: محلي.ttfخطوط جوجل المجمعة عبرfont-util(IBM Plex Sans Arabic+JetBrains Mono).
+3. تدقيق توافق Gradle وKotlin والتبعيات
+لم يتم تنفيذ أي عملية بناء في المرحلة 0تم التحقق من جميع الإصدارات أدناه عن طريق الفحص.gradle/libs.versions.toml،gradle/wrapper/gradle-wrapper.properties،gradle.properties،build.gradle.ktsو وapp/build.gradle.ktsلا يتم الادعاء بالتوافق أو نجاح الاختبار إلا بعد تنفيذه تجريبياً في المرحلة الأولى.
+مكون / إضافة	الإصدار في مساحة العمل	المرحلة 1+ الإجراء	دور في يوم	مبررات التثبيت
+جرادل	9.3.1فيgradle-wrapper.properties(لا)gradlewالبرامج النصية في الجذر)	تحقق عبرإصدار gradle --في المرحلة 1	تنفيذ عملية بناء واجهة سطر الأوامر (CLI)gradleأمر)	نظام Gradle مثبت مسبقًا مقترن بـ AGP 9.1.1
+AGP(com.android.application)	9.1.1	نشط (احتفظ به)	إضافة بناء تطبيقات أندرويد مع لغة كوتلين المدمجة (compileSdk = 36،targetSdk = 36،minSdk = 24)	بيئة AI Studio الأساسية المُعدة مسبقًا
+إضافة Kotlin Compose	2.4.21	نشط (احتفظ به)	مُصرّف لغة كوتلين + مُصرّف كومبوز مُدمج	مُهيأ مسبقًا فيlibs.versions.toml
+KSP(com.google.devtools.ksp)	2.3.5	نشط (احتفظ به)	معالجة التعليقات التوضيحية للغرف وتصدير المخططات	مُهيأ مسبقًا فيlibs.versions.toml
+قم بتكوين قائمة مكونات المنتج + المادة 3 + الأيقونات	2024.09.00	نشط (يتم التحقق منه في المرحلة 1)	Compose UI، مكونات M3، أيقونات Material، قائمة مكونات اختبار Compose UI	مثبت على قالب BOM؛يجب التحققمع كوتلين2.4.21في المرحلة الأولى قبل أي تغيير في الإصدار
+غرفة(وقت التشغيل،ktx،مُترجم)	2.7.0	نشط (احتفظ + أضف)اختبار الغرفة)	استمرارية SQLite، استعلامات Flow، عمليات الترحيل الصريحة	مُهيأ مسبقًا فيlibs.versions.toml
+إنشاء التنقل	2.8.9	مُعلّق →التفعيل في المرحلة 1	التنقل بين 5 وجهات واستعادة التطبيقات	مُهيأ مسبقًا فيlibs.versions.toml
+تفضيلات مخزن البيانات	1.1.7	مُعلّق →التفعيل في المرحلة 1	المظهر، اللغة (ar/en) تتبع الأذونات	مُهيأ مسبقًا فيlibs.versions.toml
+الروتينات الفرعية(أساسي،أندرويد،اختبار)	1.10.2	نشط (احتفظ به)	تدفقات البيانات وموزعات الاختبار	مُهيأ مسبقًا فيlibs.versions.toml
+روبوليكتريك+ اختبار واجهة المستخدم باستخدام JUnit + Compose	4.16.1	نشط (احتفظ؛ تحقق)createComposeRule()في المرحلة 1)	اختبارات واجهة المستخدم المحلية لـ JVM Room و Receiver و Compose	مُهيأ مسبقًا فيlibs.versions.toml
+إزالة السكر من المكتبة الأساسية(desugar_jdk_libs)	غير مدرج في الكتالوج بعد	أضف في المرحلة 1	يُمكّنjava.timeعلى API 24–25 (minSdk = 24)	مطلوب لقواعد التقويم المحلي دون حدوث تغيير في الجدول الزمنيminSdk
+مدير العمل(work-runtime-ktx)	غير مدرج في الكتالوج بعد	أضف في المرحلة الرابعة	إعادة محاولات صندوق الصادر، والتراجع، ومطابقة التمهيد/المنطقة الزمنية	مطلوب من قبل النظام التقني المجمد (لم يُستخدم أبدًا كمؤقت إنذار أساسي)
+التسلسل(موشيمقابلkotlinx-serialization)	موشي 1.15.2نشط؛kotlinx-serializationغائب	التقييم في المرحلة الأولى	النسخ الاحتياطي لملفات JSON الأساسية ومسارات التنقل	موشيمُعد مسبقًا؛kotlinx-serializationتمت الإضافة فقط في حال تم التحقق من توافقها معAGP 9.1.1/Kotlin 2.4.21في المرحلة 1
+مكدس سحابي/شبكي غير مستخدم(firebase-*،التحديث،okhttp،معترض التسجيل،خدمات جوجل،أسرار)	نشط في قالب البداية	تعطيل / التعليق في المرحلة 1	غير مستخدم في YAWMI الذي يعمل دون اتصال بالإنترنت فقط	يقلل حجم ملف APK مع الحفاظ علىmetadata.jsonمفاتيح النظام الأساسي
+4. البنية التقنية، سلامة قاعدة البيانات والأنظمة الفرعية
+4.1 بنية الطبقات (بنية نظيفة + MVVM + حقن التبعية اليدوي)
+رمز
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          PRESENTATION LAYER                             │
+│  Compose Screens (Today, Tasks, Calendar, Habits/Goals, Stats/Settings) │
+│        │                 ▲                                              │
+│        │ User Intents    │ Immutable UiState (StateFlow)                │
+│        ▼                 │                                              │
+│  ViewModels (Manual DI Factory + SavedStateHandle + Lifecycle Flow)     │
+└────────┼─────────────────┬──────────────────────────────────────────────┘
+│                 │
+▼                 │
+┌──────────────────────────┴──────────────────────────────────────────────┐
+│                            DOMAIN LAYER                                 │
+│  Use Cases (Task, Habit, Goal, Stats, Backup/Restore, Outbox Dispatch)  │
+│  Pure Rules: Validation, Local Calendar/DST Math, Streaks, Clamping     │
+│  Repository Interfaces & AlarmSyncPort / BackupPort Contracts           │
+└────────┬─────────────────────────────────────┬──────────────────────────┘
+│                                     │
+▼                                     ▼
+┌─────────────────────────────────┐   ┌───────────────────────────────────┐
+│       AUTHORITATIVE DATA        │   │    EXTERNAL SYSTEM SUBSYSTEM      │
+│  • YawmiDatabase (Room v1)      │   │  (Separate System — Not Atomic    │
+│  • AlarmSyncOutboxEntity (seq)  │◄──┤   with SQLite Transactions)       │
+│  • Explicit Migrations Only     │   │  • AlarmOutboxDispatcher          │
+│  • Preferences DataStore        │   │  • AlarmManager (Primary Timer)   │
+│    (Separate Persistence Store) │   │  • NotificationManager + Channels │
+│                                 │   │  • WorkManager (Retry/Reconcile)  │
+└─────────────────────────────────┘   └───────────────────────────────────┘
+4.2 أمان نقل الغرف (عمليات النقل الصريحة فقط)
+حظر صارم: لا تتصل أبدًاfallbackToDestructiveMigration(...)،fallbackToDestructiveMigrationFrom(...)أوfallbackToDestructiveMigrationOnDowngrade(...)في الغرفة 2.7.0،fallbackToDestructiveMigration(dropAllTables = false) لا يزاليقوم بإعادة إنشاء جميع الجداول التي يديرها Room بشكل مدمر عند فقدان عملية الترحيل.
+التكوين المطلوب: احذف جميع أدوات البناء الاحتياطية المدمرة؛ اضبطexportSchema = true؛ تكوينroom.schemaLocationعبر KSPموفر وسيطات سطر الأوامر؛ تسجيل صريحالهجرة (ن، ن + 1)مثيلات عبر.addMigrations(...)تؤدي عمليات الترحيل المفقودة إلى حدوث مشاكل.IllegalStateExceptionعند فتح الجهاز، يتم الحفاظ على بيانات المستخدم الموجودة على الجهاز دون تغيير.
+4.3 مخطط قاعدة البيانات المقاوم للعناصر اليتيمة وهوية النية المعلقة العالمية
+الغرفة 2.7.0@Entityلا يدعم@Checkالتعليقات التوضيحية. يفرض YAWMI سلامة المراجع بشكل أصلي من خلالجداول من نوع المالكمع SQLiteالمفتاح الخارجي (... عند حذف البيانات بشكل متسلسل)القيود التي يتم إنشاؤها مباشرة بواسطة لغة تعريف البيانات الخاصة بالغرفة.
+تستخدم جميع معرّفات الكيانات الفريدة (UUID) الإصدار الرابع (UUID v4).سلسلة نصيةالمعرفاتيقلل UUID v4 بشكل كبير من احتمالية حدوث تصادمات المعرفات عبر عمليات التصدير والأجهزة، بينما تظل قواعد الكشف الصريح عن التصادم وحل النزاعات سارية أثناء عملية الدمج.
+جدول الكيانات	دور	الأعمدة الرئيسية	المفاتيح الخارجية والفهارس وقواعد السلامة
+فئة الكيان	تجميع المهام/العادات/الأهداف	المعرف (المفتاح الأساسي)،الاسم،رمز اللون،اسم الأيقونة،ترتيب الفرز،مؤرشف،تم التحديث في العصر الطباشيري	مفهرس فيترتيب الفرز
+TaskEntity	المهام والأحداث اليدوية	المعرف (المفتاح الأساسي)،العنوان،وصف؟،تاريخ مُجدول؟،وقت البدء؟،وقت الانتهاء؟،أولوية،الحالة،categoryId؟،ملاحظات؟،createdAtEpochMs،تم التحديث في العصر الطباشيري،تم الانتهاء منه في العصر؟	categoryId -> CategoryEntity(id) ON DELETE SET NULL؛ مفهرس في(scheduledDate, status)،categoryId،أولوية
+HabitEntity	تعريف العادة	المعرف (المفتاح الأساسي)،العنوان،وصف؟،categoryId؟،targetPerPeriod،مؤرشف،createdAtEpochMs،تم التحديث في العصر الطباشيري	categoryId -> CategoryEntity(id) ON DELETE SET NULL؛ مفهرس فيمؤرشف
+كيان إكمال العادة	سجل عادات يومي ثابت	المعرف (المفتاح الأساسي)،habitId،completedDate (YYYY-MM-DD)،عدد،تم الانتهاء في العصر الحديث،لقطة القاعدة	HabitId -> HabitEntity(id) عند حذف CASCADEفهرس فريد على(habitId, completedDate)
+GoalEntity	الأهداف الشخصية	المعرف (المفتاح الأساسي)،الاسم،وصف؟،categoryId؟،تاريخ البدء،targetDate؟،القيمة المستهدفة؟،التقدم الحالي،السماح بتجاوز الهدف،الحالة،createdAtEpochMs،تم التحديث في العصر الطباشيري	categoryId -> CategoryEntity(id) ON DELETE SET NULL
+GoalTaskCrossRef	رابط الهدف ↔ المهمة	معرف الهدف،taskId	مفتاح أساسي مركب(معرف الهدف، معرف المهمة)؛ مفاتيح خارجية إلىGoalEntityوTaskEntity(ON DELETE CASCADE)
+GoalHabitCrossRef	رابط الهدف ↔ العادة	معرف الهدف،habitId	مفتاح أساسي مركب(goalId, habitId)؛ مفاتيح خارجية إلىGoalEntityوHabitEntity(ON DELETE CASCADE)
+TaskRecurrenceEntity	قاعدة التكرار للمهام	المعرف (المفتاح الأساسي)،taskId (مفتاح خارجي فريد)،التكرار،فاصل زمني،قناع أيام الأسبوع،تاريخ الانتهاء؟،تم التحديث في العصر الطباشيري	TaskId -> TaskEntity(id) عند حذف CASCADEفهرس فريد علىtaskId
+كيان تكرار العادة	قاعدة التكرار للعادات	المعرف (المفتاح الأساسي)،habitId (مفتاح خارجي فريد)،التكرار،فاصل زمني،قناع أيام الأسبوع،تاريخ الانتهاء؟،تم التحديث في العصر الطباشيري	HabitId -> HabitEntity(id) عند حذف CASCADEفهرس فريد علىhabitId
+TaskReminderEntity	تنبيهات المهام	المعرف، taskId، triggerDate، triggerTime، offsetMinutes، requestCode، scheduleRevision (Long)، isEnabled، scheduleState، updatedAtEpochMs	TaskId -> TaskEntity(id) ON DELETE CASCADE؛ requestCode فريد عالمياً بواسطة المخصّص المركزي؛ فهرس (taskId, isEnabled)
+HabitReminderEntity	تنبيهات العادات	المعرف، habitId، triggerDate، triggerTime، offsetMinutes، requestCode، scheduleRevision (Long)، isEnabled، scheduleState، updatedAtEpochMs	HabitId -> HabitEntity(id) ON DELETE CASCADE؛ requestCode فريد عالمياً بواسطة المخصّص المركزي؛ فهرس (habitId, isEnabled)
+GoalReminderEntity	تنبيهات الأهداف	المعرف، goalId، triggerDate، triggerTime، offsetMinutes، requestCode، scheduleRevision (Long)، isEnabled، scheduleState، updatedAtEpochMs	GoalId -> GoalEntity(id) ON DELETE CASCADE؛ requestCode فريد عالمياً بواسطة المخصّص المركزي؛ فهرس (goalId, isEnabled)
+NoteEntity	ملاحظات مستقلة ومرتبطة	المعرف (المفتاح الأساسي)،العنوان،محتوى،linkedTaskId؟،linkedGoalId؟،مثبت،createdAtEpochMs،تم التحديث في العصر الطباشيري	LinkedTaskId -> TaskEntity(id) عند حذف المجموعة NULL،linkedGoalId -> GoalEntity(id) ON DELETE SET NULL
+AppMetadataEntity	بيانات تعريف قاعدة البيانات الداخلية	key (PK)، value	يتضمن schema_initialized وoutbox_seq وnext_reminder_request_code وdispatcherLeaseOwner وdispatcherLeaseUntilEpochMs وdispatcherLeaseGeneration؛ مفاتيح نظام محلية غير قابلة للاستيراد
+AlarmSyncOutboxEntity	صندوق أوامر مزامنة النظام المتسلسل	المعرف، seq (Long UNIQUE)، reminderId، ownerType، requestCode، systemTarget (ALARM_MANAGER/NOTIFICATION_MANAGER)، action (SCHEDULE_ALARM/CANCEL_ALARM/CANCEL_NOTIFICATION)، component، package، actionName، dataUri، mimeType?، intentIdentifier?، categoriesCanonical، pendingIntentIdentityKey، notificationTag?، notificationId?، targetScheduleRevision (Long?)، status (PENDING/CLAIMED/SUCCEEDED/SUPERSEDED/FAILED_PERMANENT)، claimedLeaseGeneration?، claimedAtEpochMs?، createdAtEpochMs، attemptCount، lastAttemptAtEpochMs?، failureReason?	سجل تشغيل داخلي غير قابل للاستيراد؛ يحتفظ بلقطة هوية PendingIntent كاملة حتى بعد حذف التذكير؛ seq وعدادات التخصيص تُحدّث داخل معاملة Room
+TaskReminderDeliveryEntity	سجل تسليم تنبيهات المهام	id، taskReminderId، occurrenceKey، scheduledAtEpochMs، firedScheduleRevision، state، notificationTag، notificationId، attemptCount، lastAttemptAtEpochMs?، lastError?، createdAtEpochMs، updatedAtEpochMs	TaskReminderId -> TaskReminderEntity(id) ON DELETE CASCADE؛ UNIQUE(taskReminderId, occurrenceKey)؛ فهرس على state
+HabitReminderDeliveryEntity	سجل تسليم تنبيهات العادات	id، habitReminderId، occurrenceKey، scheduledAtEpochMs، firedScheduleRevision، state، notificationTag، notificationId، attemptCount، lastAttemptAtEpochMs?، lastError?، createdAtEpochMs، updatedAtEpochMs	HabitReminderId -> HabitReminderEntity(id) ON DELETE CASCADE؛ UNIQUE(habitReminderId, occurrenceKey)؛ فهرس على state
+GoalReminderDeliveryEntity	سجل تسليم تنبيهات الأهداف	id، goalReminderId، occurrenceKey، scheduledAtEpochMs، firedScheduleRevision، state، notificationTag، notificationId، attemptCount، lastAttemptAtEpochMs?، lastError?، createdAtEpochMs، updatedAtEpochMs	GoalReminderId -> GoalReminderEntity(id) ON DELETE CASCADE؛ UNIQUE(goalReminderId, occurrenceKey)؛ فهرس على state
+هوية PendingIntent العالمية وسياسة عدم إعادة استخدام requestCode:
+- يتضمن pendingIntentIdentityKey نوع PendingIntent، وrequestCode، وIntent.action، وdata URI، وMIME type إن وجد، وIntent.identifier عند استخدامه (مع مراعاة API)، والـ explicit component، وpackage، ومجموعة categories بعد ترتيبها معيارياً. لا تُستخدم Intent extras كجزء من الهوية؛ Android لا يقارنها في Intent.filterEquals().
+- تُنشأ data URI ثابتة وفريدة لكل تذكير: yawmi://reminder/{ownerType}/{reminderId}. تُستخدم قيم ثابتة لـ action وcomponent وpackage، مع FLAG_IMMUTABLE. FLAG_UPDATE_CURRENT لا يغيّر هوية PendingIntent.
+- يخصص AppMetadataEntity("next_reminder_request_code") رموزاً متزايدة مركزياً لجميع جداول التذكير الثلاثة. يبدأ العداد من 1000، ويُحجز requestCode داخل معاملة واحدة قبل إدراج التذكير. لا يُعاد استخدام الرمز طوال عمر تثبيت التطبيق، حتى بعد حذف التذكير أو اكتماله أو استبدال البيانات.
+- يحتفظ Outbox بلقطة requestCode وdataUri وبقية حقول الهوية اللازمة لـ CANCEL حتى بعد حذف صف التذكير. تُحسب الرموز المحجوزة من جداول التذكير ومن أوامر Outbox المعلقة معاً. لا يجوز إعادة تخصيص رمز لا يزال موجوداً في أي سجل Outbox.
+- مفتاح coalescing لأوامر AlarmManager هو pendingIntentIdentityKey الكامل، وليس (ownerType, requestCode) وحدهما. أما أوامر NotificationManager فتُدمج فقط بحسب notificationTag + notificationId وتظل منفصلة عن أوامر AlarmManager. تُدمج الأوامر المتعاقبة فقط داخل الهدف والهوية نفسيهما، ويُحتفظ بأحدث seq صالح. لا تُدمج أوامر تذكيرين مختلفين حتى إن تشابه بعض حقولهما.
+- لا تُصدّر requestCode أو pendingIntentIdentityKey في ملف النسخ الاحتياطي. عند استعادة تذكير جديد يُخصص له requestCode جديد. عند دمج سجل يطابق تذكيراً محلياً بالمعرّف نفسه، يمكن الاحتفاظ بهويته المحلية، مع رفع scheduleRevision وإصدار أمر مزامنة جديد.
+- في Replace تُنشأ أوامر CANCEL لهويات التذكيرات المحلية القديمة قبل حذفها، ثم تُنشأ هويات جديدة للتذكيرات المستعادة. لا يُصفّر next_reminder_request_code ولا يُخفض. القيمة التالية هي الأكبر من العداد الحالي، وواحد أكثر من أعلى requestCode في الجداول، وواحد أكثر من أعلى requestCode محجوز في Outbox، والحد الأدنى 1000.
+- إذا وصل العداد إلى Int.MAX_VALUE أو تعذر ضمان عدم التصادم، يفشل إنشاء/استعادة التذكير برسالة خطأ واضحة؛ لا يحدث التفاف عددي ولا إعادة استخدام صامتة للرموز.
+  إعادة بناء ما بعد الاستعادة: تُحفظ عدادات AppMetadataEntity الداخلية محلياً ولا تُستورد من النسخة الاحتياطية. يعاد التحقق من requestCode المحجوزة في الجداول وOutbox، وتُخصص رموز جديدة للتذكيرات المستوردة التي لا تطابق سجلاً محلياً.
+4.4 سياسة الاحتفاظ بسجل إتمام العادات
+أرشفة أولاً (مؤرشف = صحيح)يؤدي إيقاف عادة ما إلى أرشفتها تلقائيًا، مما يوقف عمليات تسجيل الوصول اليومية ويعطل/يلغي عمليات تسجيل الوصول المستقبلية.HabitReminderEntityتنبيهات مع الحفاظ على 100% منكيان إكمال العادةالسجلات والخطوط
+تغييرات قاعدة إعادة التوجيه فقطتحديث قواعد التكرار أو قواعد الهدف لا يؤدي أبدًا إلى تغيير القواعد الموجودةكيان إكمال العادةصفوف (لقطة القاعدةيحافظ على السياق التاريخي).
+حذف دائم صريحيتطلب توصية بتأكيد تدميري من خطوتينأرشفة بدلاً من ذلكمع التحذير من أنه سيتم حذف السجلات التاريخية بشكل دائم.
+4.5 ترتيب صندوق الصادر للمعاملات، ودورة حياة الإنذار، والأذونات متعددة الطبقات
+روم (SQLite) ومدير الإنذارات/مدير الإشعاراتهي أنظمة منفصلة وأبداًمشاركة معاملة واحدة.
+1. ترتيب صندوق الصادر، الدمج، ومنع تنفيذ الأوامر القديمة:
+   - كل تغيير يؤثر في جدولة تذكير أو حالته يُنفّذ داخل YawmiDatabase.withTransaction: تحديث صف التذكير وزيادة scheduleRevision، ثم إدراج أمر Outbox المقابل في المعاملة نفسها. يزاد outbox_seq ويُسند seq متزايد وفريد إلى كل أمر.
+   - يحتوي كل أمر على targetScheduleRevision ولقطة هوية PendingIntent الكاملة، بما في ذلك requestCode وdataUri وcomponent وaction. أوامر CANCEL لا تعتمد على إعادة قراءة صف قد حُذف بالفعل.
+   - يجمع الموزع الأوامر حسب pendingIntentIdentityKey الكامل فقط. داخل الهوية نفسها، يكون seq الأعلى هو الحالة المطلوبة الأحدث. لا تُحذف الأوامر الأقدم إلا بعد إثبات أن الأمر الأحدث يغطي الهوية نفسها وأنه اكتمل أو أصبح متجاوزاً بصورة آمنة.
+   - قبل SCHEDULE_ALARM، يتحقق الموزع من وجود التذكير، وisEnabled = true، ونشاط المالك، وتطابق scheduleRevision الحالية مع targetScheduleRevision. إذا اختلفت المراجعة، يُسجل الأمر كـ SUPERSEDED ولا يُنفذ.
+   - قبل CANCEL_ALARM، إذا لم يعد صف التذكير موجوداً أو كان معطلاً، يُنفذ الإلغاء باستخدام لقطة الهوية المخزنة في Outbox. لا يُسقط أمر Cancel بوصفه قديماً إلا إذا كان صف التذكير الحالي مفعلاً بمراجعة أحدث وكانت هوية PendingIntent الحالية مطابقة تماماً لهوية أمر Cancel. إذا تغيّر requestCode أو data URI، يجب إلغاء الهوية القديمة حتى لو بقي reminderId نفسه.
+   - لكل عملية نظام خارجية حالة موثقة: PENDING، CLAIMED، SUCCEEDED، SUPERSEDED، أو FAILED_PERMANENT. تُحذف/تؤرشف السجلات المكتملة وفق سياسة احتفاظ تشغيلية بعد تثبيت نجاحها، ولا تُحذف السجلات المعلقة عند فشل العامل.
+2. Single-Flight Outbox Dispatcher ومنع التزامن:
+   - جميع مصادر التشغيل (بدء التطبيق، Boot Receiver، MY_PACKAGE_REPLACED، تغيير الوقت/المنطقة الزمنية، تغيّر صلاحية exact alarm، الاستعادة، وبعد أي معاملة أضافت Outbox) لا تستدعي AlarmOutboxDispatcher مباشرة؛ بل تطلب تشغيل Worker واحد باسم فريد ثابت: YAWMI_REMINDER_SYSTEM_DISPATCH.
+   - تُستخدم WorkManager.enqueueUniqueWork مع ExistingWorkPolicy.APPEND_OR_REPLACE. تضمن سلسلة العمل ذات الاسم الفريد عدم تشغيل continuations متوازية لهذا الاسم، وتُلحق الطلبات الجديدة بعد العمل القائم بدلاً من تجاهلها. لا يُستخدم KEEP في هذا المسار لأنه قد يتجاهل طلباً وصل أثناء انتهاء العامل.
+   - بالإضافة إلى Unique Work، يُستخدم قفل Mutex داخل العملية وسجل Lease في AppMetadataEntity (dispatcherLeaseOwner، dispatcherLeaseUntilEpochMs، dispatcherLeaseGeneration). يُكتسب/يُجدد/يُحرر الـ Lease بمعاملات Room، ويُزاد generation عند كل مالك جديد لمنع عامل قديم من اعتماد نتائج بعد فقد الملكية.
+   - لا ينفذ أي Receiver عمليات AlarmManager أو NotificationManager مباشرة. بعد نجاح معاملة Room التي كتبت Outbox، يُجدول Unique Work. إذا توقفت العملية بين commit وجدولة العمل، فإن فحص بدء التطبيق/التمهيد يكتشف الصفوف المعلقة ويعيد Enqueue.
+   - يعالج العامل الأوامر بالتسلسل حسب seq تصاعدياً، ولا يشغّل استدعاءات Schedule/Cancel بالتوازي. يعيد فحص الصفوف قبل تحرير Lease، ويستمر حتى يفرغ Outbox وسجل التسليم. أي إدخال جديد أثناء المعالجة يُلحق إلى سلسلة Unique Work ويظل قابلاً للمعالجة حتى إذا وصل بعد لقطة الدفعة الأولى.
+   - قبل كل أثر جانبي وبعده، يتحقق العامل من leaseOwner وleaseGeneration. إذا فقد الـ Lease يتوقف دون اعتماد النتيجة. إذا انتهت صلاحية الـ Lease بعد توقف مفاجئ، يستطيع عامل لاحق امتلاكه ومتابعة الصفوف غير المكتملة. لا تُزال الصفوف إلا بعد نجاح العملية أو تسجيل حالة نهائية صريحة.
+   - تُستخدم سياسة Retry مع Backoff أسي للأخطاء العابرة. بعد الحد المحدد للمحاولات أو الخطأ غير القابل للاسترداد، يُسجل FAILED_PERMANENT وسبب قابل للتشخيص ويُعرض للمستخدم كحالة تذكير غير مجدول؛ لا يبقى الصف في حلقة إعادة محاولة لا نهائية.
+   - لا يوجد ادعاء بذرية مشتركة بين Room وAlarmManager/NotificationManager. استدعاءات set/cancel قابلة لإعادة التنفيذ باستخدام الهوية نفسها، ويُعاد تشغيل الصف المتبقي بعد التوقف المفاجئ.
+3. Schedule Revision بدلاً من الاعتماد على الطابع الزمني وحده:
+   - تحتوي TaskReminderEntity وHabitReminderEntity وGoalReminderEntity على scheduleRevision: Long غير قابل للقيمة الفارغة، يبدأ من 1.
+   - تُزاد scheduleRevision داخل معاملة Room عند كل تغيير يؤثر في موعد التنبيه أو هويته أو تفعيله: التاريخ، الوقت، offset، قاعدة التكرار، enable/disable، pause/resume، الإكمال، الإلغاء، الأرشفة، الاستعادة، أو إعادة الحساب بسبب المنطقة الزمنية/الساعة.
+   - يحتوي AlarmSyncOutboxEntity على targetScheduleRevision: Long. updatedAtEpochMs يبقى لأغراض التدقيق والعرض فقط ولا يستخدم وحده لتحديد حداثة الأمر.
+   - أمر Schedule لا يُنفذ إلا عند تطابق targetScheduleRevision مع النسخة الحالية. أمر Cancel المرتبط بصف محذوف يحتفظ بالمراجعة والهوية القديمة وينفذ الإلغاء؛ أما Cancel قديم لتذكير أعيد تفعيله بمراجعة أحدث فيُسجل SUPERSEDED.
+   - عند دمج نسخة احتياطية مع تذكير محلي مطابق، لا تُستورد scheduleRevision كما هي؛ تُنشأ مراجعة أعلى من كلتا النسختين داخل المعاملة ويُدرج أمر Outbox مطابق. وعند Replace تُعاد تهيئة المراجعات المستعادة إلى قيمة جديدة محلية صالحة مع هويات PendingIntent الجديدة.
+4. استعادة النظام بعد التعطل ومعالجة الأوامر المتبقية:
+   - بعد AlarmManager.set*/cancel أو NotificationManager.cancel، إذا توقفت العملية قبل تحديث سجل Outbox، يعيد العامل تنفيذ العملية نفسها بالهوية نفسها. set/cancel المتكرران على PendingIntent نفسه يتقاربان إلى الحالة النهائية المطلوبة.
+   - عند إعادة تشغيل التطبيق أو الجهاز، تُقرأ كل أوامر Outbox وسجلات التسليم المعلقة. لا يعتمد الاسترداد على الذاكرة أو على أن العامل السابق أكمل آخر خطوة.
+   - لا يمكن ضمان Exactly-Once عبر SQLite وخدمات Android المنفصلة. تعتمد المنظومة على at-least-once execution مع هوية ثابتة، ومراجعات متزايدة، وعمليات idempotent، والتحقق من الحالة الحالية قبل التنفيذ.
+5. استقبال التنبيه، سجل التسليم، وإعادة المحاولة بعد التعطل:
+   - عند وصول PendingIntent، يستخرج Receiver reminderId وownerType وrequestCode وtriggerEpochMs وscheduleRevision المتوقعين. يتحقق من أن الصف ما زال موجوداً ومفعلاً، وأن المالك نشط، وأن scheduleRevision وموعد الحدث يطابقان القيم المسجلة. أي حدث قديم أو منسوخ يُسجل STALE/EXPIRED ولا ينتج إشعاراً.
+   - تُنشأ ثلاثة جداول سجل تسليم typed: TaskReminderDeliveryEntity وHabitReminderDeliveryEntity وGoalReminderDeliveryEntity، كل واحد بمفتاح خارجي إلى جدول التذكير الموافق مع ON DELETE CASCADE، وفهرس فريد (reminderId, occurrenceKey). تحتوي على occurrenceKey، scheduledAtEpochMs، firedScheduleRevision، state، notificationTag، notificationId، attemptCount، lastAttemptAtEpochMs، lastError، createdAtEpochMs، updatedAtEpochMs.
+   - حالات التسليم: PENDING، POSTED_TO_SYSTEM، SUPPRESSED_PERMISSION، SUPPRESSED_CHANNEL، STALE، EXPIRED، FAILED_RETRYABLE، FAILED_PERMANENT. POSTED_TO_SYSTEM تعني أن استدعاء NotificationManager.notify() عاد دون خطأ؛ لا تعني أن المستخدم شاهد الإشعار فعلياً.
+   - تُحفظ سجلات التسليم pending في Room قبل استدعاء NotificationManager. بعد commit يُجدول نفس Unique Worker لمعالجة التسليمات. إذا أُغلقت العملية قبل Enqueue، يكتشفها فحص بدء التطبيق. إذا أُغلقت بعد notify وقبل تأكيد السجل، يعاد notify باستخدام الزوج الثابت (notificationTag, notificationId)؛ Android يستبدل الإشعار الموجود بنفس الزوج بدلاً من إنشاء بطاقة نشطة ثانية.
+   - الهوية الثابتة للإشعار هي notificationTag = "yawmi:reminder:{ownerType}:{reminderId}" مع notificationId ثابت يساوي 0 لهذا التذكير. الزوج (tag, id) فريد داخل التطبيق. يجب أن تستخدم بقية أنواع إشعارات التطبيق نطاق tags منفصلاً. عند إعادة المحاولة لا يتغير الزوج.
+   - عند منع الإشعارات العامة أو إذن POST_NOTIFICATIONS، تُسجل الحالة SUPPRESSED_PERMISSION. وعند تعطيل قناة التذكير تُسجل SUPPRESSED_CHANNEL. لا تُسجل أي من الحالتين على أنها POSTED_TO_SYSTEM، ولا يعاد عرض الحدث القديم تلقائياً بعد منح الإذن؛ يظهر للمستخدم في سجل التذكير/حالة التطبيق أنه لم يُعرض.
+   - إذا ألغى المستخدم التذكير أو أكمل/أرشف المالك قبل تسليم إشعار pending، تُحوّل سجلات التسليم المعلقة المرتبطة به إلى STALE داخل المعاملة نفسها، وتُنشأ أوامر CANCEL المناسبة. التذكير لمرة واحدة يمكن أن يصبح scheduleState = CONSUMED بعد معالجة الموعد، بينما تبقى حالة التسليم مستقلة (POSTED_TO_SYSTEM أو SUPPRESSED_*).
+   - عند التذكيرات المتكررة، يُسجل الحدث الحالي في سجل التسليم ويُحسب الموعد التالي اعتماداً على قاعدة التكرار والمنطقة الزمنية المحلية، مع زيادة scheduleRevision وإدراج SCHEDULE_ALARM في Outbox داخل المعاملة. لا يؤدي تقدم الجدول إلى إسقاط سجل تسليم الحدث السابق.
+   - يحدث تعارض غير قابل للذرية بين كتابة Room واستدعاء NotificationManager؛ لذلك تعتمد إعادة المحاولة على at-least-once مع مفتاح إشعار ثابت. قد يعيد النظام نشر الإشعار إذا حدث crash بعد notify وقبل تسجيل النجاح ثم قام المستخدم بإزالته قبل إعادة المحاولة؛ لا تدّعي الخطة Exactly-Once، لكنها تمنع وجود إشعارين نشطين للزوج نفسه.
+   - يُسمح بتسليم الحدث المتأخر إذا ظل occurrence هو الحدث الحالي ولم يُلغَ أو يُستبدل. يُسجل STALE إذا تغيّرت scheduleRevision قبل إطلاقه، وEXPIRED إذا تجاوزه حدث أحدث أو انتهت صلاحيته وفق سياسة التكرار؛ لا يُعاد إطلاق أحداث قديمة بعد المصالحة.
+6. عمليات فحص منفصلة للأذونات والقدرات (بما في ذلك ميزة استعادة النظام في نظام Android 14+):
+   بوابة / حالة	واجهة برمجة التطبيقات وقاعدة التقييم	السلوك عند الرفض / الحظر
+   إشعارات ما بعد النشر	ContextCompat.checkSelfPermission(واجهة برمجة التطبيقات 33+؛ ضمنيًا على واجهة برمجة التطبيقات < 33)	لا يزال بإمكان جهاز الإنذار التسجيل (مُجدول_بالضبط/مُجدول_غير_دقيق); تعرض واجهة المستخدم لافتة تحذير مستمرة + إجراء الإعدادات؛جهاز استقبال الإنذاريتخطىnotify()بأمان بدوناستثناء أمني.
+   إشعارات على مستوى التطبيق	NotificationManagerCompat.from(context).areNotificationsEnabled()(جميع مستويات واجهة برمجة التطبيقات)	يرصد كتم الإشعارات على مستوى نظام التشغيل حتى على واجهة برمجة التطبيقات (API) الأقل من 33؛ ويتم التعامل معه بنفس طريقة حظر تسليم الإشعارات في واجهة المستخدم.جهاز استقبال الإنذار.
+   أهمية على مستوى القناة	NotificationManager.getNotificationChannel(id).importance != IMPORTANCE_NONE(API 26+)	يحدد القنوات الفردية الصامتة (المهام،عادات،الأهداف) ويرتبط مباشرة بإعدادات قناة نظام التشغيل.
+   SCHEDULE_EXACT_ALARM	AlarmManager.canScheduleExactAlarms()(API 31+) —لم أفترض أبدًا أن البيانات محفوظة بعد النسخ الاحتياطي/الاستعادة لنظام Android 14+	تمت إعادة التحقق منه ديناميكيًا علىActivity.ON_RESUME، بعد الاستعادة، فيتذكير/مصالحة/عاملوعبرتم تغيير حالة إذن التأشيرة ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED. يعود إلى غير الدقيقمدير الإنذارات(مُجدول_غير_دقيق) والترقيات عبر عملية التوفيق عند منحها.
+   4.6 مواصفات النسخ الاحتياطي والاستعادة (SAF JSON)
+   حالة داخلية مستبعدة: AlarmSyncOutboxEntity وسجلات TaskReminderDeliveryEntity وHabitReminderDeliveryEntity وGoalReminderDeliveryEntity بيانات تشغيل/تسليم محلية؛ لا تُصدّر ولا تُقبل أثناء الاستيراد. تُعاد أوامر الجدولة للتذكيرات المستعادة، ولا تُعاد إرسال أحداث التسليم التاريخية من ملف النسخ الاحتياطي.
+   البيانات الأساسية ومجموع التحقق SHA-256 الدقيق:
+   بنية التصدير:{ "formatVersion": 1, "schemaVersion": <dbVersion>, "exportedAtEpochMs": <utcMs>, "payloadChecksum": "<hex>", "payload": { "preferences": {...}, "categories": [...], ... } }.
+   payloadChecksumيتم حسابهحصريًاعبر بايتات UTF-8 من التسلسل المتعارف عليهحمولةكائن JSON (SHA-256(canonicalPayloadJson.toByteArray(UTF_8))(أحرف صغيرة سداسية عشرية 64 حرفًا)—باستثناء payloadChecksumوبيانات تعريف الغلاف الخارجي من مدخلات التجزئة.
+   التحقق من صحة ما قبل الاستيراد يتحققpayloadChecksumأولاً، يرفض ملفات JSON غير الصحيحة أوschemaVersion > CURRENT_DB_VERSION، تدعم التحديثات المخططات القديمة في الذاكرة، وتتحقق من صحة الثوابت (العنوانغير فارغ،وقت النهاية >= وقت البداية، القيم التعدادية الصالحة / تواريخ ISO)، ويتحقق من حل كل مفتاح خارجي بشكل سليم قبل فتح أي معاملة كتابة في قاعدة البيانات.
+   قواعد دمج الكيانات:
+   كيان	مفتاح (مفاتيح) التعارض	سياسة الدمج
+   فئة الكيان	id(UUID)	قارنتم التحديث في العصر الطباشيري: تحديث إذاالنسخ الاحتياطي > محليوإلا، احتفظ بالملفات المحلية. يتم الاحتفاظ بمعرفات UUID المميزة ذات الأسماء المتطابقة بشكل منفصل.
+   TaskEntity	id(UUID)	قارنتم التحديث في العصر الطباشيري: تحديث إذاالنسخ الاحتياطي > محليوإلا فالتزم بالمنتجات المحلية.
+   HabitEntity	id(UUID)	قارنتم التحديث في العصر الطباشيري: تحديث إذاالنسخ الاحتياطي > محليوإلا فالتزم بالمنتجات المحلية.
+   كيان إكمال العادة	id(UUID) وفريد(habitId, completedDate)	متطابقعددولقطة القاعدة→ تخطي العملية غير الفعالةأي اختلاف فيعددأولقطة القاعدة→ توقف مؤقتًا لاختيار المستخدم الصريحفي ورقة التعارض:حافظ على الطابع المحلي،استخدم النسخ الاحتياطيأواحتفظ بعدد أكبر (عندمااحتفظ بعدد أكبريتم تحديده: إذاbackup.count > local.count، خذbackup.count،backup.ruleSnapshotو وbackup.completedAtEpochMs؛ إذاlocal.count >= backup.count، احتفظمحليدون تغيير؛ إذاعددمتساوٍ وفقطلقطة القاعدةيختلف الأمر، ويختار المستخدم بينحافظ على الطابع المحليأواستخدم النسخ الاحتياطي).
+   GoalEntity	id(UUID)	قارنتم التحديث في العصر الطباشيري: تحديث إذاالنسخ الاحتياطي > محليوإلا فالتزم بالمنتجات المحلية.
+   GoalTaskCrossRef/GoalHabitCrossRef	مفاتيح أساسية مركبة	اتحاد متكرر (إدراج أو تجاهل) بعد دمج الوالدين.
+   TaskRecurrenceEntity/كيان تكرار العادة	idوالوالد الفريد FK	المطابقة أولاً بواسطة المفتاح الخارجي الأصل (واحد لواحد) أو المعرف الفريد العالمي (UUID)؛ التحديث فقط إذاbackup.updatedAtEpochMs > local.updatedAtEpochMs.
+   TaskReminderEntity/HabitReminderEntity/GoalReminderEntity	id + owner FK؛ requestCode وscheduleRevision محليان	لا تُستورد requestCode أو scheduleRevision من النسخة الاحتياطية. عند المطابقة يُحتفظ بهوية الجهاز المحلية وتُزاد scheduleRevision ويُدرج Outbox جديد؛ وعند إنشاء تذكير مستورد جديد يُخصص requestCode محلي جديد ومراجعة جديدة، مع إصدار CANCEL/SCHEDULE عند الحاجة.
+   NoteEntity	id(UUID)	قارنتم التحديث في العصر الطباشيري: تحديث إذاالنسخ الاحتياطي > محليوإلا فالتزم بالمنتجات المحلية.
+   AppMetadataEntity	مفتاح	مفاتيح النظام الداخلية (schema_*، outbox_seq، next_reminder_request_code، dispatcher lease/generation) لا تُستورد أو تُستبدل أبداً؛ تُحفظ القيم المحلية الرتيبة، وتُدرج المفاتيح غير النظامية فقط عند عدم وجودها.
+   استبدال الذرية، وإعادة بناء البيانات الوصفية، وفشل تقسيم مخزن البيانات:
+   داخل معاملة واحدة YawmiDatabase.withTransaction
+   اقرأ هويات جميع التذكيرات المحلية ورموز requestCode المحجوزة، بما فيها أوامر CANCEL المعلقة في AlarmSyncOutboxEntity، وأنشئ أوامر إلغاء تحمل لقطة الهوية الكاملة قبل حذف أي صف تذكير. حوّل سجلات ReminderDelivery المعلقة للتذكيرات القديمة إلى STALE أو احذفها وفق FK cascade بعد تسجيل CANCEL_NOTIFICATION بالهوية الثابتة.
+   حذف/مسح جداول بيانات المستخدم بترتيب آمن للمفاتيح الخارجية أثناءالحفاظ على البيانات الداخليةAppMetadataEntityمفاتيح النظام.
+   إدراج كيانات الأصل ثم الفرع التي تم التحقق من صحتها (حل أي مشكلة بين الجداول)رمز الطلبالتصادمات إذا تم إنشاؤها).
+   حدّث AppMetadataEntity("next_reminder_request_code") إلى max(القيمة المحلية الحالية، أعلى requestCode في جداول التذكير + 1، أعلى requestCode في Outbox + 1، 1000)؛ لا تُخفض العداد ولا تعِد استخدام أي رمز محجوز. أبقِ outbox_seq رتيباً وأعلى من جميع seq المسجلة. خصص رموزاً جديدة للتذكيرات المستوردة غير المطابقة، وارفع scheduleRevision عند الدمج أو الاستبدال.
+   أي خطأ في SQLite يؤدي إلى التراجع عن معاملة الغرفة بأكملها (تبقى بيانات المستخدم الحالية والإنذارات الحالية دون تغيير).
+   تحديث مخزن البيانات بعد إتمام عملية حفظ البيانات في الغرفة: لا تشترك الغرفة ومخزن البيانات في معاملة واحدة.مخزن بيانات تفضيلات المستخدمتحديثات فقطبعديتم تنفيذ عمليات الالتزام في الغرفة. في حالة فشل مخزن البيانات، يتم إغلاق الغرفة.لاتم التراجع؛ استعادة عمليات الإرجاعنجاح الاستعادة الجزئيةيُعلم المستخدم بنجاح تسجيل البيانات بينما فشلت الإعدادات (السمة/اللغة) ويمكن ضبطها في الإعدادات. بعد الالتزام،AlarmOutboxDispatcher+تذكير/مصالحة/عاملأعد التحققcanScheduleExactAlarms()(حماية Android 14+) ومطابقة الإنذارات.
+7. إعادة ترتيب خارطة طريق التنفيذ المكونة من 7 مراحل وبوابات القبول
+   المرحلة	النطاق والتسليمات	بوابة التحقق الآلي وبوابة التحقق من المستخدم
+   المرحلة الأولى: تأسيس المشروع	تحققإصدار gradle --تنظيف تبعيات السحابة/الشبكة غير المستخدمة؛ تهيئةcoreLibraryDesugaring، وتكوين التنقل، ومخزن البيانات، وfont-utilالخطوط؛ فريدةمعرف التطبيق، أيقونة تكيفية،يومىمزامنة؛حاوية التطبيقسمات DI، والفحم الداكن، والضوء الدافئ، واللغة العربية RTL افتراضيًا + مفتاح تبديل اللغة الإنجليزية، وواجهة مستخدم بخمس وجهات + هيكل اليوم.	compile_appletوgradle :app:assembleDebugاجتياز؛ إطلاق روبوليكتريك، من اليمين إلى اليسار/من اليسار إلى اليمين، وتنقل بخمس علامات تبويب + تجريبيcreateComposeRule()التحقق من كلمة المرور عبرgradle :app:testDebugUnitTestيقوم المستخدم بالتحقق من تشغيل محاكي البث.
+   المرحلة الثانية: التخزين المحلي الأساسي (الغرفة + مخزن البيانات)	قاعدة بيانات يومىالإصدار الأول (جميع الجداول الـ 18 المُنمذجة بما في ذلك التكرارات/التذكيرات التي يحددها المالك،AlarmSyncOutboxEntity متسلسل، وثلاثة جداول ReminderDelivery typed، وAppMetadataEntity للعدادات،exportSchema = true،room.schemaLocation، عمليات الترحيل الصريحة فقط)، DAOs التي تُرجعتدفق، المستودعات،مخزن بيانات تفضيلات المستخدم.	اختبارات غرفة الروبوتات الكهربائية (gradle :app:testDebugUnitTest) التحقق من CRUD، ON DELETE CASCADE/SET NULL، outbox_seq الرتيب، عدم إعادة استخدام requestCode، تفرد (reminderId, occurrenceKey) في جداول ReminderDelivery الثلاثة، تصدير المخطط، والاستمرارية بعد إعادة فتح قاعدة البيانات.
+   المرحلة الثالثة: إدارة المهام وتكامل لوحة المعلومات	التحقق من صحة مهام المجال النقي (العنوان-إلزامي فقط،متوسط/معلقالافتراضيات،وقت النهاية >= وقت البداية), ورقة عمل المهام CRUD، وقائمة المهام (البحث، والتصفية، والفرز، والتأجيل، والإكمال، وإعادة الفتح، والحذف)، والفئات، ولوحة معلومات اليوم التفاعلية مباشرة على Room.	تجتاز اختبارات وحدة المجال + اختبارات واجهة المستخدم Robolectric Compose التحقق من صحة المهام، والانتقالات، واستمرار لوحة المعلومات عبر إعادة التشغيل المحاكاة.
+   المرحلة الرابعة: التقويم، صندوق الصادر، والإشعارات/الجدولة	عرض التقويم اليومي/الأسبوعي/الشهري (التوقيت المحلي، مع عزل المهام المتراكمة غير المجدولة)، إضافةwork-runtime-ktx،AlarmOutboxDispatcher (Single-Flight، APPEND_OR_REPLACE، Lease/Generation، coalescing بالهوية الكاملة، scheduleRevision، retry/backoff، delivery ledger)،تذكير/مصالحة/عامل(فحص كامل للتشغيل النشط/المنطقة الزمنية)،جهاز استقبال الإنذار (التحقق من revision، تسليم الإشعار idempotent، SUPPRESSED/STALE/EXPIRED، والاستهلاك لمرة واحدة مقابل التقدم المتكرر محلياً)، تشخيص الأذونات متعدد الطبقات (إشعارات ما بعد النشر،areNotificationsEnabled()، أهمية القناة،SCHEDULE_EXACT_ALARMعلىON_RESUME(+ حماية استعادة نظام Android 14+).	اختبارات الوحدة لحسابات التقويم المحلي/التوقيت الصيفي؛ واختبارات Robolectric للتحقق من هوية PendingIntent الكاملة وعدم التصادم، Single-Flight وترتيب/دمج Outbox، scheduleRevision، الإلغاء بعد الحذف/الاستعادة، حالات تسليم الإشعار وcrash recovery، إعادة جدولة التكرار، بدء التشغيل، تعطيل الإشعارات/القنوات، وصلاحية SCHEDULE_EXACT_ALARM على Android 14+.
+   المرحلة الخامسة: العادات والأهداف	هابيت CRUD،كيان تكرار العادة، غير قابل للتغييركيان إكمال العادةالأرشفة الافتراضية مقابل الحذف المؤكد، والسلاسل، وعمليات CRUD للأهداف، وتثبيت التقدم المرتبط (السماح بتجاوز الهدفودورة حياة تذكير الهدف (مكتمل/ملغي/مؤرشف/متوقف مؤقتًا/حذف).	اختبارات وحدة المجال للتحقق من السلاسل، والحفاظ على سجل تغيير القواعد، وتثبيت الهدف؛ اختبارات قاعدة بيانات Robolectric + واجهة المستخدم تتحقق من أن الأرشيف يحافظ على السجل بينما يؤدي الحذف المؤكد إلى إلغاء صندوق الصادر وتسلسله بشكل نظيف.
+   المرحلة السادسة: الإحصائيات والملاحظات والنسخ الاحتياطي/الاستعادة	مخططات البيانات الحقيقية (لوحة إنشاء، آمنة للقسمة على الصفر)، مركز الملاحظات/الربط، تصدير/استيراد SAF JSON مع التحقق من SHA-256 للحمولة الأساسية فقط، دمج لكل كيان (بما في ذلك).كيان إكمال العادة عدد/لقطة القاعدةحل المستخدم وإعادة تخصيص requestCode مع مراعاة Outbox المحجوز)، استبدال التراجع + إعادة بناء العداد، ونجاح الاستعادة الجزئيةمعالجة مخزن البيانات	اختبارات الوحدة لحسابات الإنتاجية، وخوارزمية SHA-256 القياسية، والتحقق من صحة المخطط والمفاتيح الخارجية؛ اختبارات قاعدة بيانات Robolectric للتحقق من حل تعارضات الدمج، والجداول المتقاطعةرمز الطلبمعالجة التصادم، استبدال التراجع في SQLite والحفاظ على البيانات الداخليةAppMetadataEntityالعدادات، ومرونة DataStore في حالات الفشل الجزئي.
+   المرحلة السابعة: ضمان الجودة النهائي والتحضير للإصدار	تشغيل كامل للتراجع، واختبار الحفاظ على المخطط/الترحيل، ومراجعة إمكانية الوصول من اليمين إلى اليسار ومن اليسار إلى اليمين وTalkBack، ومراجعة أذونات سياسة التشغيل، والتحقق من البناء النظيف.	gradle :app:testDebugUnitTestاجتاز الاختبار بنسبة 100% دون أي اختبارات تم تخطيها أو حذفها؛compile_appletوgradle :app:assembleDebugاجتياز الاختبار بنجاح؛ يُكمل المستخدم شرح برنامج محاكاة البث المباشر.
+بوابات الاختبار الإضافية الإلزامية لإغلاق عيوب المرحلة صفر:
+- PendingIntent/Outbox: اختبار تطابق pendingIntentIdentityKey مع requestCode وaction وcomponent وdata URI؛ عدم إعادة استخدام requestCode بعد الحذف أو Replace؛ حالة وجود CANCEL قديم في Outbox عند استعادة تذكير جديد؛ والتحقق من أن أمرَي تذكيرين مختلفين لا يندمجان.
+- Single-Flight: تشغيل محفزات متزامنة من بدء التطبيق وBoot Receiver وWorkManager والاستعادة؛ إثبات أن Worker واحد فقط يملك Lease وينفذ الآثار الجانبية؛ إدراج أوامر أثناء معالجة الدفعة؛ قتل العامل بعد claim وقبل التنفيذ وبعد تنفيذ OS وقبل ACK؛ ثم التحقق من الاسترداد بعد انتهاء Lease دون فقد أوامر.
+- Schedule Revision: تعديل التاريخ والوقت والتكرار والتفعيل بسرعة، بما في ذلك تعديلات في المللي ثانية نفسه؛ إثبات أن أمر revision قديم لا ينفذ بعد أمر أحدث، وأن CANCEL القديم لا يلغي SCHEDULE أحدث، وأن حذف الصف لا يمنع تنفيذ CANCEL باستخدام لقطة الهوية.
+- Notification Delivery: اختبار PENDING ثم POSTED_TO_SYSTEM، crash بعد notify وقبل ACK وإعادة المحاولة بالزوج نفسه (tag,id)، منع POST_NOTIFICATIONS، تعطيل القناة، إلغاء المالك قبل التسليم، وصول PendingIntent قديم، انتهاء/تجاوز occurrence، واستمرار سجلات التسليم بعد إعادة فتح Room.
+- جميع هذه الاختبارات مخططة فقط في Phase 0؛ لا يُعلن نجاحها إلا بعد تنفيذها فعلياً في Phase 4 وما بعده.
+6. بناء وتكوين حدود اختبار واجهة المستخدم (تم التحقق منها مقابل مساحة العمل)
+   compile_applet(أداة بناء استوديو الذكاء الاصطناعي): أداة التحقق من بناء المنصة المتاحة؛لم يتم تنفيذه بعد في المرحلة 0.
+   واجهة سطر أوامر Gradle مقابل غلاف Gradle: تم فحصه/(list_dir) وgradle/wrapper/—gradle-wrapper.properties(9.3.1) موجود، ولكن نصوص تشغيل Gradle Wrapper (gradlew،gradlew.bat،gradle-wrapper.jar) غير موجودة في مساحة العمل. النظامgradleعبرتشغيل الأمرواجهة سطر الأوامر المدعومة (إصدار gradle --سيتم فحصها أولاً في المرحلة الأولى، ثم...gradle :app:assembleDebug،gradle :app:testDebugUnitTestو وgradle :app:assembleRelease).لم يتم تنفيذ أي منها في المرحلة 0.
+   تبعيات اختبار واجهة المستخدم في Robolectric Compose (تم التحقق منها فيapp/build.gradle.ktsوlibs.versions.toml):
+   testImplementation(libs.robolectric)(4.16.1)
+   testImplementation(libs.androidx.compose.ui.test.junit4)(عبرcomposeBom = "2024.09.00")
+   debugImplementation(libs.androidx.compose.ui.test.manifest)(مطلوب لـcreateComposeRule()نشاط المضيف في الروبوتات الكهربائية)
+   testImplementation(libs.androidx.junit)(1.3.0),testImplementation(libs.junit)(4.13.2),testImplementation(libs.kotlinx.coroutines.test)(1.10.2)
+   خيارات الاختبار { اختبارات الوحدة { تضمين موارد أندرويد = صحيح } }
+   لا يوجد ادعاء سابق لأوانهاختبارات واجهة المستخدم المحلية لـ Compose هيلايُزعم أنها تمر حتى يتم تنفيذها فعلياً عبرgradle :app:testDebugUnitTestفي المرحلة 1+
+   اختبارات خاصة بالمحاكي فقط (غير متوفرة في الحاوية):connectedDebugAndroidTest، مجموعات أدوات الإسبريسو، وضع السكون/إعادة التشغيل الحقيقيمدير الإنذاراتلا يمكن تشغيل عمليات التسليم، ومربعات حوار أذونات وقت تشغيل نظام التشغيل، وعرض وحدة معالجة الرسومات للأجهزة في حاوية البناء، وتتطلب التحقق من المستخدم في محاكي البث في AI Studio.
+   الحالة:المرحلة 0 - خطة التصميم المعماري النهائية / في انتظار موافقة المستخدملن تبدأ المرحلة الأولى إلا بعد مراجعتك لهذه المواصفات والموافقة عليها صراحةً
+7. إغلاق العيوب الأربعة في Phase 0 — قرارات تصميمية وبوابات قبول
+1. PendingIntent Identity and Outbox Coalescing: مغلقة على مستوى التصميم عبر هوية كاملة محفوظة، data URI ثابتة، requestCode عالمي متزايد لا يعاد استخدامه، وحجز الرموز الموجودة في Outbox. الاختبار التنفيذي مؤجل إلى المرحلة الرابعة.
+2. Single-Flight Outbox Dispatcher: مغلقة على مستوى التصميم عبر Unique Work باسم ثابت وسياسة APPEND_OR_REPLACE، وMutex داخل العملية، وLease/Generation في Room، ومعالجة تسلسلية وإعادة فحص قبل تحرير القفل. الاختبار التنفيذي مؤجل إلى المرحلة الرابعة.
+3. Schedule Revision: مغلقة على مستوى التصميم عبر scheduleRevision في جداول التذكير الثلاثة وtargetScheduleRevision في Outbox؛ الطابع الزمني لأغراض التدقيق فقط. الاختبار التنفيذي مؤجل إلى المرحلة الرابعة.
+4. Notification Delivery and Crash Recovery: مغلقة على مستوى التصميم عبر سجلات تسليم منفصلة typed، حالات PENDING/POSTED_TO_SYSTEM/SUPPRESSED_PERMISSION/SUPPRESSED_CHANNEL/STALE/EXPIRED، ومفتاح إشعار ثابت (tag,id) وإعادة محاولة at-least-once idempotent. لا تدّعي المنظومة Exactly-Once بين Room وNotificationManager. الاختبار التنفيذي مؤجل إلى المرحلة الرابعة.
+قيود الاعتماد: هذه الوثيقة تحدد التصميم فقط. لم تُنشأ أو تُعدّل ملفات Kotlin أو Gradle أو XML أو موارد، ولم تُنفذ اختبارات أو أوامر بناء في Phase 0. تظل Phase 0 في انتظار موافقة المستخدم النهائية، ولا تبدأ Phase 1 تلقائياً.
+
+مراجع Android الرسمية المستخدمة للتحقق من سلوك واجهات النظام:
+- PendingIntent / Intent.filterEquals: https://developer.android.com/reference/android/content/Intent#filterEquals(android.content.Intent)
+- WorkManager unique work و APPEND_OR_REPLACE: https://developer.android.com/develop/background-work/background-tasks/persistent/how-to/manage-work
+- NotificationManager.notify(tag, id, notification): https://developer.android.com/reference/android/app/NotificationManager#notify(java.lang.String,int,android.app.Notification)
+- AlarmManager وسلوك التنبيهات عند إعادة تشغيل الجهاز: https://developer.android.com/reference/android/app/AlarmManager
+الحالة: Phase 0 — Final Architecture Approval / Awaiting User Approval. لا تبدأ Phase 1 إلا بعد موافقة المستخدم الصريحة.
